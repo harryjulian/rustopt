@@ -1,4 +1,6 @@
-use rand_distr::{Bernoulli, Uniform, Distribution};
+use rand::Rng;
+use rand_distr::{Bernoulli, Distribution};
+mod utils;
 
 // Genetic Algorithm for solving the Discrete Knapsack Problem
 
@@ -20,19 +22,12 @@ fn generate_population(population_size: usize, length: usize) -> Vec<Vec<bool>> 
   return population
 }
 
-fn filter_by<I1, I2>(bs: I1, ys: I2) -> impl Iterator<Item=<I2 as Iterator>::Item>
-  // Generic function for filtering a vector by a boolean vector.
-    where I1: Iterator<Item=bool>,
-          I2: Iterator {
-      bs.zip(ys).filter(|x| x.0).map(|x| x.1)
-}
-
 fn fitness(solution: Vec<bool>, weights: Vec<u64>, max_weight: u64) -> u64 {
   // Eval basic fitness function.
-  let items: Vec<_> = filter_by(solution.into_iter(), weights.into_iter()).collect();
+  let items: Vec<_> = utils::filter_by(solution.into_iter(), weights.into_iter()).collect();
   let fitness: u64 = items.iter().sum();
 
-  // Return 0 if constraints are breached
+  // Return 0 if weight constraint is breached
   if fitness < max_weight {
     return fitness
   }
@@ -42,17 +37,19 @@ fn fitness(solution: Vec<bool>, weights: Vec<u64>, max_weight: u64) -> u64 {
 }
 
 fn roulette_selection(fitness: Vec<f64>) -> Vec<bool> {
-  // Run roulette selection between a given pair of solutions.
+  // Run roulette selection across all solutions, return
+  // a boolean mask of those that have been selected.
 
-  let selected_idx: Vec<bool> = Vec::new();
+  let mut selected_idx: Vec<bool> = Vec::new();
+  let mut rng = rand::thread_rng();
+ 
   let population_size: usize = fitness.len();
   let overall_fitness: f64 = fitness.iter().sum();
   let p_choice_i: Vec<f64> = fitness.into_iter().map(|f| f / overall_fitness).collect();
-  let dist = Uniform::new(0, 0.999).unwrap();
 
   let mut sum: f64 = 0.0;
-  for solution_idx in 0..population_size: {
-    let r = dist.sample(&mut rand::thread_rng());
+  for solution_idx in 0..population_size {
+    let r: f64 = rng.gen_range(0.0..0.999);
     sum = sum + r;
     if r < sum {
       selected_idx.push(true);
@@ -64,15 +61,41 @@ fn roulette_selection(fitness: Vec<f64>) -> Vec<bool> {
   return selected_idx
 }
 
-fn crossover(crossover_rate: f32) -> Vec<T> {
+fn crossover(population: Vec<Vec<bool>>, crossover_rate: f64) -> Vec<Vec<bool>> {
   // Crossover genes to create children.
+ 
+  // Generate remaining indices
+  let mut population = population;
+  let mut rng = rand::thread_rng();
+  let l: usize = population[0].len() - 1;
+  let population_size: usize = population.len();
+  let top_n: usize = crossover_rate * population_size;
+
+  // Shuffle indices
+  let indices: Vec<i8> = (0..population_size).collect();
+  indices.shuffle(&mut rng);
+
+  // For each pair of indices, swap bits and overrwrite in population
+  for pair in indices.into_iter().window(2).step_by(2) {
+    let bit_location: i8 = rng.gen_range(0..l);
+    let p1: Vec<bool> = population[pair[0]];
+    let p2: Vec<bool> = population[pair[1]];
+    let p1_swap = p1[bit_location..bit_location+1];
+    let p2_swap = p1[bit_location..bit_location+1];
+    p1[bit_location..bit_location+1] = p2_swap;
+    p2[bit_location..bit_location+1] = p1_swap;
+
+    population[pair[0]] = p1;
+    population[pair[1]] = p2;
+  }
+  return population
 }
 
-fn mutation(mutation_rate: f32) -> Vec<T> {
+fn mutation(population: Vec<Vec<bool>>, mutation_rate: f64) -> Vec<Vec<bool>> {
   // Randomly switch bits to induce variance.
 }
 
-fn generation() -> Vec<T> {
+fn generation(population: Vec<Vec<bool>>) -> Vec<T> {
   // Run an entire generation!
 
 }
