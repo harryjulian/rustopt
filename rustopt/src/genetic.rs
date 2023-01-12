@@ -1,4 +1,4 @@
-use rand_distr::{Bernoulli, Distribution};
+use rand_distr::{Bernoulli, Uniform, Distribution};
 
 // Genetic Algorithm for solving the Discrete Knapsack Problem
 
@@ -41,15 +41,34 @@ fn fitness(solution: Vec<bool>, weights: Vec<u64>, max_weight: u64) -> u64 {
   }
 }
 
-fn roulette_selection() -> Vec<T> {
+fn roulette_selection(fitness: Vec<f64>) -> Vec<bool> {
   // Run roulette selection between a given pair of solutions.
+
+  let selected_idx: Vec<bool> = Vec::new();
+  let population_size: usize = fitness.len();
+  let overall_fitness: f64 = fitness.iter().sum();
+  let p_choice_i: Vec<f64> = fitness.into_iter().map(|f| f / overall_fitness).collect();
+  let dist = Uniform::new(0, 0.999).unwrap();
+
+  let mut sum: f64 = 0.0;
+  for solution_idx in 0..population_size: {
+    let r = dist.sample(&mut rand::thread_rng());
+    sum = sum + r;
+    if r < sum {
+      selected_idx.push(true);
+    }
+    else {
+      selected_idx.push(false)
+    }
+  }
+  return selected_idx
 }
 
-fn crossover() -> Vec<T> {
+fn crossover(crossover_rate: f32) -> Vec<T> {
   // Crossover genes to create children.
 }
 
-fn mutation() -> Vec<T> {
+fn mutation(mutation_rate: f32) -> Vec<T> {
   // Randomly switch bits to induce variance.
 }
 
