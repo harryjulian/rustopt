@@ -1,7 +1,6 @@
 use rand::Rng;
 use rand::seq::SliceRandom;
 use rand_distr::{Bernoulli, Distribution};
-mod utils;
 
 // Genetic Algorithm for solving the Discrete Knapsack Problem
 
@@ -23,21 +22,27 @@ fn generate_population(population_size: usize, length: usize) -> Vec<Vec<bool>> 
   return population
 }
 
-fn fitness(solution: Vec<bool>, weights: Vec<u64>, max_weight: u64) -> u64 {
+fn eval_fitness(population: &Vec<Vec<bool>>, weights: &Vec<f64>, max_weight: &f64) -> Vec<f64> {
   // Eval basic fitness function.
-  let items: Vec<_> = utils::filter_by(solution.into_iter(), weights.into_iter()).collect();
-  let fitness: u64 = items.iter().sum();
 
-  // Return 0 if weight constraint is breached
-  if fitness < max_weight {
-    return fitness
+  let mut fitness_vec: Vec<f64> = Vec::with_capacity(population.len());
+
+  for solution in population.into_iter() {
+    let items: Vec<_> = solution.into_iter().zip(weights.into_iter()).filter(|x| *x.0).map(|x| x.1).collect();
+    let fitness: f64 = items.iter().map(|x| *x).sum();
+
+    // Return 0 if weight constraint is breached
+    if fitness < *max_weight {
+      fitness_vec.push(fitness);
+    }
+    else {
+      fitness_vec.push(0.0);
+    }
   }
-  else {
-    return 0
-  }
+  return fitness_vec
 }
 
-fn roulette_selection(fitness: Vec<f64>) -> Vec<bool> {
+fn roulette_selection(fitness: &Vec<f64>) -> Vec<bool> {
   // Run roulette selection across all solutions.
   // Return a boolean mask of those that have been selected.
 
@@ -62,23 +67,37 @@ fn roulette_selection(fitness: Vec<f64>) -> Vec<bool> {
   return selected_idx
 }
 
+fn select_index_subset(population: &Vec<Vec<bool>>, selection_rate: f64) -> Vec<usize> {
+  // Given a selection rate, randomly choose indices from
+  // a population for operations to be applied to.
+
+  // Find the top N we need to select from the shuffled indices
+  let mut rng = rand::thread_rng();
+  let population_size: usize = population.len();
+  let population_size_float = population_size as f64;
+  let top_n: f64 = selection_rate * population_size_float;
+  let top_n = top_n as usize;
+
+  // Shuffle indices, select top n proportion
+  let mut indices: Vec<usize> = (0..population_size).collect();
+  indices.shuffle(&mut rng);
+  let indices = indices[0..top_n].to_vec();
+
+  return indices
+}
+
 fn crossover(population: Vec<Vec<bool>>, crossover_rate: f64) -> Vec<Vec<bool>> {
   // Crossover genes to create children.
   // Return crossed-over population.
  
-  // Generate remaining indices
+  // Init
   let mut population = population;
   let mut rng = rand::thread_rng();
-
   let l: usize = population[0].len();
   let rn: usize = l - 1;
-  let population_size: usize = population.len();
-  let pop_size_fl = population_size as f64;
-  let top_n: f64 = crossover_rate * pop_size_fl;
-
-  // Shuffle indices
-  let mut indices: Vec<_> = (0..population_size).collect();
-  indices.shuffle(&mut rng);
+  
+  // Get index subset
+  let indices = select_index_subset(&population, crossover_rate);
 
   // For each pair of indices, swap bits and overrwrite in population
   for pair in indices.windows(2).step_by(2) {
@@ -112,41 +131,149 @@ fn crossover(population: Vec<Vec<bool>>, crossover_rate: f64) -> Vec<Vec<bool>> 
 
 fn mutation(population: Vec<Vec<bool>>, mutation_rate: f64) -> Vec<Vec<bool>> {
   // Randomly switch bits to induce variance.
-}
 
-fn generation(population: Vec<Vec<bool>>) -> Vec<T> {
-  // Run an entire generation!
+  // Initialise
+  let mut population = population;
+  let mut rng = rand::thread_rng();
+  let l: usize = population[0].len();
 
-}
+  // Randomly select indices
+  let indices = select_index_subset(&population, mutation_rate);
 
-struct SolutionSet {
-  best_solution: Vec<bool>
-  best_fitness: u64
-  population: Vec<Vec<bool>>
+  // For all indices, flip a randomly select bit
+  for idx in indices.into_iter() {
+    let mutant = &mut population[idx];
+    let changed_bit: usize = rng.gen_range(0..l);
+    mutant[changed_bit] ^=mutant[changed_bit]; // Flip bit
+    population[idx] = mutant.to_vec();
+  }
+  return population
 }
 
 struct GeneticAlgorithm {
-  n_generations: usize
-  population_size: usize
-  length: usize
-  max_weight: u64
-  crossover_rate: f64
-  mutation_rate: f64
+  n_generations: usize,
+  population_size: usize,
+  length: usize,
+  weights: Vec<f64>,
+  max_weight: f64,
+  crossover_rate: f64,
+  mutation_rate: f64,
 }
 
 impl GeneticAlgorithm {
 
-  fn run() {
+  fn new(n_generations: usize,
+    population_size: usize,
+    length: usize,
+    weights: Vec<f64>,
+    max_weight: f64,
+    crossover_rate: f64,
+    mutation_rate: f64
+  ) -> GeneticAlgorithm {
+    
+    // Ensure solution size and N weights are the same
+    let weights_len: usize = weights.len();
+    assert_eq!(weights_len, length);
+
+    // Ensure solution is solveable
+    //let sorted_weights: Vec<f64> = weights.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    // let minimal_solution: f64 = sorted_weights[0..length].sum();
+    // let out: bool = if minimal_solution < max_weight {
+    //   true
+    // } else {
+    //   false
+    // };
+    // assert_eq(out, true);
+
+    // Then initialise
+    GeneticAlgorithm {
+      n_generations,
+      population_size,
+      length,
+      weights,
+      max_weight,
+      crossover_rate,
+      mutation_rate
+    }
+  }
+
+  fn run(self) -> (f64, Vec<bool>) {
 
     // Initialise Population
-    
-    // Iterate over all generations
-    for gen in 0..n_generations {
+    let mut population: Vec<Vec<bool>> = generate_population(
+      self.population_size, self.length
+    );
+    assert_eq!(population.len(), self.population_size);
 
+    let fitness: Vec<f64> = eval_fitness(
+      &population, &self.weights, &self.max_weight
+    );
+
+    // Iterate over all generations
+    for gen in 0..self.n_generations {
+
+      // Perform Selection
+      let selected_idx = roulette_selection(&fitness);
+      let mut unselected_idx: Vec<bool> = Vec::new();
+      for i in &selected_idx {
+          let j = i.clone();
+          let out: bool = i ^ j;
+          unselected_idx.push(out);
+      };
+      assert_ne!(selected_idx, unselected_idx);
+
+      let mut selected_population = population.clone();
+      let mut unselected_population = population.clone();
+      selected_population.retain(
+        |_| *selected_idx.iter().next().unwrap()
+      );
+      unselected_population.retain(
+        |_| *unselected_idx.iter().next().unwrap()
+      );
+      println!("{:?}", unselected_population);
+
+      // Perform crossover
+      unselected_population = crossover(
+        unselected_population, self.crossover_rate
+      );
+
+      // Perform mutation
+      unselected_population = mutation(
+        unselected_population, self.mutation_rate
+      );
+
+      // Get population back together.
+      let mut population = selected_population.clone();
+      for i in unselected_population {
+          population.push(i);
+      }
+      assert_eq!(population.len(), self.population_size);
+      
+      // Eval fitness again
+      let fitness: Vec<f64> = eval_fitness(
+        &population, &self.weights, &self.max_weight
+      );
     }
+
+    // Output best solution!
+    let best_solution_fitness: f64 = fitness.iter().cloned().fold(0./0., f64::max);
+    let best_solution_idx = fitness.iter().position(|x| *x == best_solution_fitness).unwrap();
+    let best_solution = &population[best_solution_idx];
+    return (best_solution_fitness, best_solution.to_vec());
   }
 }
 
+fn main() {
+    
+    let ga = GeneticAlgorithm {
+        n_generations: 2,
+        population_size: 100,
+        length: 4,
+        weights: vec![70.0, 90.0, 40.0, 50.0],
+        max_weight: 160.0,
+        crossover_rate: 0.7,
+        mutation_rate: 0.1
+    };
+    ga.run();
 
-
- 
+}
