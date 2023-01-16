@@ -13,10 +13,10 @@ fn generate_population(population_size: usize, length: usize) -> Vec<Vec<bool>> 
   let dist = Bernoulli::new(0.5).unwrap();
 
   // For each solution in the population, randomly generate a bytestring
-  for solution in 0..population_size {
+  for _solution in 0..population_size {
     let mut bytestring = Vec::with_capacity(length);
     
-    for byte in 0..length {
+    for _byte in 0..length {
         let v = dist.sample(&mut rand::thread_rng());
         bytestring.push(v)
     }
@@ -59,7 +59,7 @@ fn roulette_selection(fitness: &Vec<f64>) -> Vec<bool> {
   let mut sum: f64 = 0.0;
   for solution_idx in 0..population_size {
     let r: f64 = rng.gen_range(0.0..0.999);
-    sum = sum + r;
+    sum = sum + p_choice_i[solution_idx];
     if r < sum {
       selected_idx.push(true);
     }
