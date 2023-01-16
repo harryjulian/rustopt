@@ -1,14 +1,32 @@
+mod genetic;
+use genetic::GeneticAlgorithm;
 use pyo3::prelude::*;
 
-/// Formats the sum of two numbers as string.
 #[pyfunction]
-fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
-    Ok((a + b).to_string())
+fn run_genetic_algorithm(
+    n_generations: usize,
+    population_size: usize,
+    length: usize,
+    weights: Vec<f64>,
+    max_weight: f64,
+    crossover_rate: f64,
+    mutation_rate: f64,
+) -> PyResult<(f64, Vec<bool>)> {
+    let ga = GeneticAlgorithm {
+        n_generations: n_generations,
+        population_size: population_size,
+        length: length,
+        weights: weights,
+        max_weight: max_weight,
+        crossover_rate: crossover_rate,
+        mutation_rate: mutation_rate
+    };
+    let res = ga.run();
+    return Ok(res) 
 }
 
-/// A Python module implemented in Rust.
 #[pymodule]
 fn rustopt(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
+    m.add_function(wrap_pyfunction!(run_genetic_algorithm, m)?)?;
     Ok(())
 }

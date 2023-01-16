@@ -1,3 +1,6 @@
+extern crate rand;
+extern crate rand_distr;
+
 use rand::Rng;
 use rand::seq::SliceRandom;
 use rand_distr::{Bernoulli, Distribution};
@@ -150,19 +153,19 @@ fn mutation(population: Vec<Vec<bool>>, mutation_rate: f64) -> Vec<Vec<bool>> {
   return population
 }
 
-struct GeneticAlgorithm {
-  n_generations: usize,
-  population_size: usize,
-  length: usize,
-  weights: Vec<f64>,
-  max_weight: f64,
-  crossover_rate: f64,
-  mutation_rate: f64,
+pub struct GeneticAlgorithm {
+  pub n_generations: usize,
+  pub population_size: usize,
+  pub length: usize,
+  pub weights: Vec<f64>,
+  pub max_weight: f64,
+  pub crossover_rate: f64,
+  pub mutation_rate: f64,
 }
 
 impl GeneticAlgorithm {
 
-  fn new(n_generations: usize,
+  pub fn new(n_generations: usize,
     population_size: usize,
     length: usize,
     weights: Vec<f64>,
@@ -174,16 +177,6 @@ impl GeneticAlgorithm {
     // Ensure solution size and N weights are the same
     let weights_len: usize = weights.len();
     assert_eq!(weights_len, length);
-
-    // Ensure solution is solveable
-    //let sorted_weights: Vec<f64> = weights.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    // let minimal_solution: f64 = sorted_weights[0..length].sum();
-    // let out: bool = if minimal_solution < max_weight {
-    //   true
-    // } else {
-    //   false
-    // };
-    // assert_eq(out, true);
 
     // Then initialise
     GeneticAlgorithm {
@@ -197,7 +190,7 @@ impl GeneticAlgorithm {
     }
   }
 
-  fn run(self) -> (f64, Vec<bool>) {
+  pub fn run(self) -> (f64, Vec<bool>) {
 
     // Initialise Population
     let mut population: Vec<Vec<bool>> = generate_population(
@@ -210,49 +203,33 @@ impl GeneticAlgorithm {
     );
 
     // Iterate over all generations
-    for gen in 0..self.n_generations {
+    for _gen in 0..self.n_generations {
 
       // Perform Selection
       let selected_idx = roulette_selection(&fitness);
-      let mut unselected_idx: Vec<bool> = Vec::new();
-      for i in &selected_idx {
-          let j = i.clone();
-          let out: bool = i ^ j;
-          unselected_idx.push(out);
-      };
+      let unselected_idx: Vec<bool> = selected_idx.clone().into_iter().map(|b| if b {false} else {true}).collect();
       assert_ne!(selected_idx, unselected_idx);
 
       let mut selected_population = population.clone();
       let mut unselected_population = population.clone();
-      selected_population.retain(
-        |_| *selected_idx.iter().next().unwrap()
-      );
-      unselected_population.retain(
-        |_| *unselected_idx.iter().next().unwrap()
-      );
-      println!("{:?}", unselected_population);
+      selected_population.retain(|_| *selected_idx.iter().next().unwrap());
+      unselected_population.retain(|_| *unselected_idx.iter().next().unwrap());
 
       // Perform crossover
-      unselected_population = crossover(
-        unselected_population, self.crossover_rate
-      );
+      unselected_population = crossover(unselected_population, self.crossover_rate);
 
       // Perform mutation
-      unselected_population = mutation(
-        unselected_population, self.mutation_rate
-      );
+      unselected_population = mutation(unselected_population, self.mutation_rate);
 
       // Get population back together.
-      let mut population = selected_population.clone();
-      for i in unselected_population {
-          population.push(i);
-      }
+      population = [&selected_population[..], &unselected_population[..]].concat();
       assert_eq!(population.len(), self.population_size);
       
       // Eval fitness again
       let fitness: Vec<f64> = eval_fitness(
         &population, &self.weights, &self.max_weight
       );
+      println!("Generation best fitness: {:?}", fitness.iter().cloned().fold(0./0., f64::max));
     }
 
     // Output best solution!
@@ -261,19 +238,4 @@ impl GeneticAlgorithm {
     let best_solution = &population[best_solution_idx];
     return (best_solution_fitness, best_solution.to_vec());
   }
-}
-
-fn main() {
-    
-    let ga = GeneticAlgorithm {
-        n_generations: 2,
-        population_size: 100,
-        length: 4,
-        weights: vec![70.0, 90.0, 40.0, 50.0],
-        max_weight: 160.0,
-        crossover_rate: 0.7,
-        mutation_rate: 0.1
-    };
-    ga.run();
-
 }
